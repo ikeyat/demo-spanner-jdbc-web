@@ -20,7 +20,7 @@ spec:
       - name: "demo-spanner-jdbc-web"
         image: "gcr.io/turnkey-rookery-323304/demo-spanner-jdbc-web:latest"
         ports:
-        - containerPort: 80
+        - containerPort: 8080
 ---
 apiVersion: "v1"
 kind: "Service"
@@ -34,6 +34,7 @@ spec:
   ports:
   - protocol: "TCP"
     port: 80
+    targetPort: 8080
   selector:
     app: "demo-spanner-jdbc-web"
   type: "LoadBalancer"
