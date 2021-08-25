@@ -116,6 +116,11 @@ gke-trial  asia-northeast1-a  1.20.8-gke.900  35.187.222.160  e2-medium     1.20
 
 Warningが出ているが、一旦進む。
 
+
+GKEが割り当てられているVPCのデフォルトは、全リージョンが含まれている。
+使わないリージョンが含まれるのはネットワークリソースの無駄なので、必要なリージョン以外は削除するのが良いが、いったん後回しとする。
+
+
 ### Cloud Buildパイプラインの作成
 https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja
 に基本従って進めていく。
@@ -174,3 +179,7 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#automating
 
 ##### 作成
 以上で「作成」する。
+
+#### GitHubに任意ブランチをPush
+適当に何か資材を修正し、GitHubに`git push`する。
+ブラウザでCloud Buildの「履歴」を確認すると、新しいビルドが作成されている。
