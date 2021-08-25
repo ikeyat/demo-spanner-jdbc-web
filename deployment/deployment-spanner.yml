@@ -7,12 +7,12 @@ metadata:
   labels:
     app: "demo-spanner-jdbc-web"
 spec:
-  serviceAccountName: ksa-trial
   replicas: 3
   selector:
     matchLabels:
       app: "demo-spanner-jdbc-web"
   template:
+    serviceAccountName: ksa-trial
     metadata:
       labels:
         app: "demo-spanner-jdbc-web"

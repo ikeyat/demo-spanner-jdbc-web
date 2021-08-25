@@ -20,4 +20,3 @@ steps:
   - --filename=deployment/deployment-spanner.yml
   - --location=asia-northeast1-a
   - --cluster=gke-trial
-  - --validate=false
