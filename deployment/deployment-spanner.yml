@@ -2,48 +2,49 @@
 apiVersion: "apps/v1"
 kind: "Deployment"
 metadata:
-  name: "demo-spanner-jdbc-web-sp"
+  name: "demo-spanner-jdbc-web"
   namespace: "trial"
   labels:
-    app: "demo-spanner-jdbc-web-sp"
+    app: "demo-spanner-jdbc-web"
 spec:
+  serviceAccountName: ksa-trial
   replicas: 3
   selector:
     matchLabels:
-      app: "demo-spanner-jdbc-web-sp"
+      app: "demo-spanner-jdbc-web"
   template:
     metadata:
       labels:
-        app: "demo-spanner-jdbc-web-sp"
+        app: "demo-spanner-jdbc-web"
     spec:
       containers:
-      - name: "demo-spanner-jdbc-web-sp"
+      - name: "demo-spanner-jdbc-web"
         image: "gcr.io/turnkey-rookery-323304/demo-spanner-jdbc-web:latest"
         ports:
         - containerPort: 8080
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "spanner-gcp"
-  serviceAccountName: ksa_trial
 
 ---
 apiVersion: "v1"
 kind: "Service"
 metadata:
-  name: "demo-spanner-jdbc-web-sp-service"
+  name: "demo-spanner-jdbc-web-service"
   namespace: "trial"
   labels:
-    app: "demo-spanner-jdbc-web-sp"
+    app: "demo-spanner-jdbc-web"
     app.kubernetes.io/managed-by: "gcp-cloud-build-deploy"
 spec:
+  serviceAccountName: ksa-trial
   ports:
   - protocol: "TCP"
     port: 80
     targetPort: 8080
   selector:
-    app: "demo-spanner-jdbc-web-sp"
+    app: "demo-spanner-jdbc-web"
   type: "LoadBalancer"
-  serviceAccountName: ksa_trial
+
 ---
 apiVersion: v1
 kind: ServiceAccount
