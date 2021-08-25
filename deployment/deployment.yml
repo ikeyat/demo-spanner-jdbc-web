@@ -17,6 +17,6 @@ spec:
     spec:
       containers:
       - name: "demo-spanner-jdbc-web"
-        image: "demo-spanner/demo-spanner-jdbc-web:latest"
+        image: "gcr.io/turnkey-rookery-323304/demo-spanner-jdbc-web:latest"
         ports:
         - containerPort: 80
