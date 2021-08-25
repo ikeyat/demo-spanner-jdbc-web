@@ -1,4 +1,10 @@
 # メモ
+## ゴール
+ - GKEへのSpring Bootアプリケーションのデプロイ
+   - GitHub -> Cloud Buildのパイプラインを使用
+ - Spring BootアプリケーションからGCPのSpannerのアクセス
+ - ApigeeXによるSpring Bootアプリケーション各APIのプロキシ化
+ 
 ## 参考
    - ベースのアプリは以下を参考に。
      - https://terasolunaorg.github.io/guideline/5.7.0.RELEASE/ja/Tutorial/TutorialREST.html
@@ -8,6 +14,7 @@
  - ローカル環境については以下を参照すること。
    - https://github.com/ikeyat/demo-spanner-jdbc#%E6%BA%96%E5%82%99
  - GCPにプロジェクトを開設
+   - 本ドキュメントではプロジェクトIDを`turnkey-rookery-323304`として記述。
    - 利用サービスは以下
      -    GKE（内部で以下が生成）
          - GCE
@@ -25,27 +32,32 @@
 ```
 spring.profiles.active=h2
 ```
+
 #### ローカル起動
 Spring Boot Appとして起動。
 #### API 打鍵 (API Spec)
 ##### GET /todos/
+
 ```
-curl -D - http://localhost:8080/todos/
+$ curl -D - http://localhost:8080/todos/
 ```
 
 ##### POST /todos
+
 ```
-curl -D - -X POST -H "Content-Type: application/json" -d '{"title": "Study Spring"}' http://localhost:8080/todos
+$ curl -D - -X POST -H "Content-Type: application/json" -d '{"title": "Study Spring"}' http://localhost:8080/todos
 ```
 
 ##### PUT /todos/{id}
+
 ```
-curl -D - -X PUT http://localhost:8080/todos/{id}
+$ curl -D - -X PUT http://localhost:8080/todos/{id}
 ```
 
 ##### DELETE /todos/{id}
+
 ```
-curl -D - -X DELETE http://localhost:8080/todos/{id}
+$ curl -D - -X DELETE http://localhost:8080/todos/{id}
 ```
 
 ### ローカルでSpannerエミュレータで確認
@@ -65,19 +77,22 @@ Spring Boot Appとして起動。
 
 ### ローカルのDockerコンテナで確認
 #### dockerコンテナをビルド
+
 ```
-mvn spring-boot:build-image -Dspring-boot.build-image.imageName=demo-spanner/demo-spanner-jdbc-web
+$ mvn spring-boot:build-image -Dspring-boot.build-image.imageName=demo-spanner/demo-spanner-jdbc-web
 ```
 
 #### dockerコンテナを起動
 H2接続で起動する場合は環境変数なし。
+
 ```
-docker run -p 8080:8080 -it demo-spanner/demo-spanner-jdbc-web
+$ docker run -p 8080:8080 -it demo-spanner/demo-spanner-jdbc-web
 ```
 
 Spanner接続で起動する場合は、Profile切り替えのため、コンテナの環境変数を変更する必要がある。
+
 ```
-docker run -e SPRING_PROFILES_ACTIVE="spanner" -p 8080:8080 -it demo-spanner/demo-spanner-jdbc-web 
+$ docker run -e SPRING_PROFILES_ACTIVE="spanner" -p 8080:8080 -it demo-spanner/demo-spanner-jdbc-web 
 ```
 
 が、jdbcのURLがlocalhostのままではSpannerエミュレータには接続できないため、エラーとなるはず。
@@ -133,6 +148,7 @@ GKEが割り当てられているVPCのデフォルトは、全リージョン�
 
 #### GKEクラスタのノード構成の修正（任意）
 デフォルトだとノード数が3つであったりと検証用には無駄が多いので、ノード構成を以下に修正する。
+
  - ノード数：3 -> 1
  - インスタンスタイプ：e2-medium -> いったん変えない
 
@@ -189,6 +205,7 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#required_i
 
 #### ビルド構成ファイルをGitHubリポジトリ内に用意しておく
 `ci/cloudbuild.yml`に、以下を実行するよう記載。
+
 - Javaのビルド(mvn)
   - https://cloud.google.com/build/docs/building/build-java?hl=ja
 - コンテナのビルド(mvn)
@@ -245,13 +262,32 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#automating
 前述で作成したパイプラインにより、GKEのLoadBalancerもデプロイされる。
 デプロイされたロードバランサのグローバルIPをConsoleで確認（GKEの「サービス」から確認可能）し、curlでAPIを打鍵してみる。
 
-この時点ではアプリケーションはH2に接続している。
+この時点ではアプリケーションはPod内のH2に接続しているため、レプリカ数が2以上の場合は振り分けられたPod次第でデータ内容が変化する。
 
-次の作業でデプロイが過剰に発生しないよう、
-いったんCloudBuildを無効化しておく。
 
 ### GCPのSpannerへの接続
-TODO
+#### Spannerを有効にする
+Console（ブラウザ）から有効にする。
+
+https://console.cloud.google.com/flows/enableapi?apiid=spanner.googleapis.com&hl=ja&_ga=2.243158210.1164933426.1629795082-895740333.1618205695
+
+#### インスタンスの作成
+https://cloud.google.com/spanner/docs/create-manage-instances?hl=ja
+に従って、CLIベースで作成。検証用なので、単リージョンで100処理ユニット構成（＝0.1ノード相当、ベータ版）とする。
+
+```
+$ gcloud beta spanner instances create spanner-trial --config=regional-asia-northeast1 --description="spanner-trial" --processing-units=100
+```
+
+#### データベースの作成
+Spannerエミュレータでのデータベース作成と同様に作成可能。
+
+```
+gcloud spanner databases create test-database --instance=spanner-trial
+```
+
+#### Spannerへの接続先変更（プロファイル指定）
+
 
 ## ApigeeX経由でのAPI公開
 TODO
