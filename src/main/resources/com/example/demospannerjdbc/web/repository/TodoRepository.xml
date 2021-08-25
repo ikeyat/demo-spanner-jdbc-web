@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper
+	namespace="com.example.demospannerjdbc.web.repository.TodoRepository">
+
+	<resultMap id="todoResultMap"
+		type="com.example.demospannerjdbc.web.model.Todo">
+		<id property="id" column="id" />
+		<result property="title" column="title" />
+		<result property="finished" column="finished" />
+		<result property="createdAt" column="created_at" />
+	</resultMap>
+
+	<select id="findById" parameterType="string"
+		resultMap="todoResultMap">
+		SELECT * FROM todo WHERE id = #{id}
+	</select>
+
+	<select id="countByFinished" parameterType="boolean"
+		resultType="long">
+		SELECT COUNT(*) FROM
+		todo WHERE finished = #{finished}
+	</select>
+
+	<select id="findAll" resultMap="todoResultMap">
+		SELECT * FROM todo
+	</select>
+
+	<update id="update"
+		parameterType="com.example.demospannerjdbc.web.model.Todo">
+		UPDATE todo SET title=#{title}, finished =
+		#{finished}, created_at = #{createdAt}
+		WHERE id = #{id}
+	</update>
+
+	<insert id="insert"
+		parameterType="com.example.demospannerjdbc.web.model.Todo">
+		INSERT INTO todo (id, title, finished, created_at)
+		VALUES (#{id}, #{title}, #{finished},
+		#{createdAt})
+	</insert>
+
+	<delete id="delete"
+		parameterType="com.example.demospannerjdbc.web.model.Todo">
+		DELETE FROM todo WHERE id = #{id}
+	</delete>
+</mapper>
