@@ -8,6 +8,14 @@
  - ローカル環境については以下を参照すること。
    - https://github.com/ikeyat/demo-spanner-jdbc#%E6%BA%96%E5%82%99
  - GCPにプロジェクトを開設
+   - 利用サービスは以下
+     -    GKE（内部で以下が生成）
+         - GCE
+         - Cloud Load Balancing
+     - Spanner
+     - Cloud Build
+     - Artifact Registry(Container Registry)
+     - ApigeeX
 
 ## ローカル起動での確認
 ### ローカルでH2で確認
@@ -88,6 +96,7 @@ GitHubからCloud Buildを経由してGKEにデプロイするパイプライン
 Cloud BuildおよびGKEをGCPのConsoleで有効化しておく。
 
 ### GKEクラスタの作成
+#### GKEクラスタの初期作成
 検証用なので、単一ゾーンクラスタを作成、
 バージョンはリリースチャネルに載せて自動Updateさせる。
 
@@ -122,6 +131,48 @@ Warningが出ているが、一旦進む。
 GKEが割り当てられているVPCのデフォルトは、全リージョンが含まれている。
 使わないリージョンが含まれるのはネットワークリソースの無駄なので、必要なリージョン以外は削除するのが良いが、いったん後回しとする。
 
+#### GKEクラスタのノード構成の修正（任意）
+デフォルトだとノード数が3つであったりと検証用には無駄が多いので、ノード構成を以下に修正する。
+ - ノード数：3 -> 1
+ - インスタンスタイプ：e2-medium -> いったん変えない
+
+##### ノードプールの確認
+https://cloud.google.com/kubernetes-engine/docs/how-to/node-pools?hl=ja#viewing_node_pools_in_a_cluster
+
+```
+# ノードプールの名前を取得
+$ gcloud container node-pools list --cluster gke-trial
+NAME          MACHINE_TYPE  DISK_SIZE_GB  NODE_VERSION
+default-pool  e2-medium     100           1.20.8-gke.900
+
+# 取得したノードプール名を指定し、ノードプールの詳細を確認
+$ gcloud container node-pools describe default-pool --cluster gke-trial
+...
+initialNodeCount: 3
+...
+```
+
+##### ノードプールの変更
+https://cloud.google.com/kubernetes-engine/docs/how-to/node-pools?hl=ja#resizing_a_node_pool
+
+```
+$ gcloud container clusters resize gke-trial --node-pool default-pool --num-nodes 1
+Pool [default-pool] for [gke-trial] will be resized to 1.
+
+Do you want to continue (Y/n)?  y
+
+Resizing gke-trial...done.                                                     
+Updated [https://container.googleapis.com/v1/projects/turnkey-rookery-323304/zones/asia-northeast1-a/clusters/gke-trial].
+
+# ノードプールの詳細を確認し、サイズが1担ったことを確認
+$ gcloud container node-pools describe default-pool --cluster gke-trial
+...
+initialNodeCount: 1
+....
+```
+
+##### ノードのインスタンスタイプの変更
+TODO
 
 ### Cloud Buildパイプラインの作成
 https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja
