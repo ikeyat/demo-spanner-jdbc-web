@@ -1,11 +1,13 @@
 # メモ
 ## 参考
-   - ベースのアプリは以下を参考
+   - ベースのアプリは以下を参考に。
      - https://terasolunaorg.github.io/guideline/5.7.0.RELEASE/ja/Tutorial/TutorialREST.html
+     - https://github.com/ikeyat/demo-spanner-jdbc
      
 ## 環境準備
- - 以下を参照すること。
+ - ローカル環境については以下を参照すること。
    - https://github.com/ikeyat/demo-spanner-jdbc#%E6%BA%96%E5%82%99
+ - GCPにプロジェクトを開設
 
 ## ローカル起動での確認
 ### ローカルでH2で確認
@@ -129,7 +131,10 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja
 https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#required_iam_permissions
 
 #### マニフェストファイルをGitHubリポジトリ内に用意しておく
-deployment/deployment.yml
+`deployment/deployment.yml`に、以下をデプロイするよう記載。
+- demo-spanner-jdbc-webのデプロイ
+- 外部公開用のLoadBalancerのServiceのデプロイ
+- (TODO)LoadBalancerのポリシー設定等のデプロイ
 
 #### ビルド構成ファイルをGitHubリポジトリ内に用意しておく
 `ci/cloudbuild.yml`に、以下を実行するよう記載。
@@ -169,6 +174,7 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#automating
 
 ##### イベント
 イベントは、「ブランチに push する」を選択する。
+デフォルトの正規表現だと、mainブランチのみが対象となる。必要に応じて正規表現を変えてブランチ対象を増やす。
 
 ##### 構成
 「Cloud Build 構成ファイル（yaml または json）」を選ぶ。
@@ -183,3 +189,18 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#automating
 #### GitHubに任意ブランチをPush
 適当に何か資材を修正し、GitHubに`git push`する。
 ブラウザでCloud Buildの「履歴」を確認すると、新しいビルドが作成されている。
+
+### インターネット経由でのAPI打鍵(H2接続)
+前述で作成したパイプラインにより、GKEのLoadBalancerもデプロイされる。
+デプロイされたロードバランサのグローバルIPをConsoleで確認（GKEの「サービス」から確認可能）し、curlでAPIを打鍵してみる。
+
+この時点ではアプリケーションはH2に接続している。
+
+次の作業でデプロイが過剰に発生しないよう、
+いったんCloudBuildを無効化しておく。
+
+### GCPのSpannerへの接続
+TODO
+
+## ApigeeX経由でのAPI公開
+TODO
