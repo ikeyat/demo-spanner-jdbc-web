@@ -127,6 +127,50 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#required_i
 deployment/deployment.yml
 
 #### ビルド構成ファイルをGitHubリポジトリ内に用意しておく
-ci/cloudbuild.yml
+`ci/cloudbuild.yml`に、以下を実行するよう記載。
+- Javaのビルド(mvn)
+  - https://cloud.google.com/build/docs/building/build-java?hl=ja
+- コンテナのビルド(mvn)
+- コンテナのContainer RegistryへのPush
+- GKEへのデプロイ
+  - https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#building_and_deploying_a_new_container_image
 
 
+#### ローカルからパイプラインを試しに実行
+
+```
+$ gcloud builds submit --project=turnkey-rookery-323304 --config ci/cloudbuild.yml
+```
+
+### GitHubの操作をトリガに自動実行
+#### GitHubリポジトリを接続
+https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#automating_deployments
+で、「リポジトリを接続」を選択。
+
+GitHubで認証し、許可を与える。
+
+初回は、「リポジトリを選択」で「GitHub アプリは、どのリポジトリにもインストールされていません」とエラーになっているので、
+GitHubアプリ「Google Cloud Buildのインストール」のボタンを押す。
+
+All repositoriesもしくは対象リポジトリを選択し、Install。
+
+そのあとGCPに戻り、「トリガーを作成」を押す。
+
+#### トリガを作成
+https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#automating_deployments
+
+##### トリガーの名前
+トリガーの名前はいったん`gcp-trial-demo-spanner-jdbc-web`とする。
+
+##### イベント
+イベントは、「ブランチに push する」を選択する。
+
+##### 構成
+「Cloud Build 構成ファイル（yaml または json）」を選ぶ。
+ロケーションは「ci/cloudbuild.yml」を入力する。
+
+##### 代入変数
+今回は使わないが、コミット番号をPodに記載させたり、ブランチごとにデプロイ先Podを分けたい場合などは利用が必要と思われる。
+
+##### 作成
+以上で「作成」する。
