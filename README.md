@@ -40,7 +40,7 @@ curl -D - -X DELETE http://localhost:8080/todos/{id}
 
 ### ローカルでSpannerエミュレータで確認
 #### H2への向き先設定
-起動時のJVM引数で`spring.profiles.active`をspannerに上書きすることで、Spannerに接続する。
+起動時のJVM引数で`spring.profiles.active`を`spanner`に上書きすることで、Spannerに接続する。
 
 ```
 -Dspring.profiles.active=spanner
