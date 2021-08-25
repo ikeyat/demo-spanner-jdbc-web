@@ -286,6 +286,83 @@ Spannerエミュレータでのデータベース作成と同様に作成可能�
 gcloud spanner databases create test-database --instance=spanner-trial
 ```
 
+#### GKE -> Spannerへのアクセス権の付与
+- https://qiita.com/atsumjp/items/9df1f4e18bea164f95fe
+- https://medium.com/google-cloud-jp/k8s-gcp-access-controle-8d8e92446e84
+    - 「k8s から GCP リソースへのアクセスを管理する」
+
+に記載があるよう、GKE -> GCP（Spanner等）への鍵なしアクセスのためには、Workload Identityを使用し、Kubernatesサービスアカウント（KSA）とGCPサービスアカウント（GSA）を紐付付ける必要がある。
+
+以降はGCPのリファレンスに従って作業をすすめる。
+
+https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#enable_on_cluster
+
+##### 既存のGKEクラスタでWorkload Identity有効化
+https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#enable_on_cluster
+
+```
+$ gcloud container clusters update gke-trial --workload-pool=turnkey-rookery-323304.svc.id.goog
+```
+  
+処理に結構時間を要する（5分くらい）。
+  
+##### 既存ノードプールでWorkload Identity有効化
+https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#option_2_node_pool_modification
+
+```
+$ gcloud container node-pools update default-pool --cluster=gke-trial --workload-metadata=GKE_METADATA
+```  
+
+処理に結構時間を要する（5分くらい）。
+
+##### Google Cloud認証
+https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#authenticating_to
+
+```
+$ gcloud container clusters get-credentials gke-trial
+$ kubectl create namespace trial
+$ kubectl create serviceaccount --namespace trial ksa-trial
+```
+
+リンク先の通り、マニフェストに以下を追記する。
+本リポジトリの資材では、`deployment-spanner.yml`に別ファイル化している。
+
+```
+spec:
+  serviceAccountName: ksa-trial
+```
+
+※ここでGKEにnamespace`trial`を作成しているので、デプロイするPod等のnamespaceも変更するる。
+
+```
+metadata:
+  namespace: "trial"
+```
+
+##### Google Cloud認証（続き）
+
+```
+$ gcloud iam service-accounts create gsa-trial
+
+$ gcloud iam service-accounts add-iam-policy-binding \
+  --role roles/iam.workloadIdentityUser \
+  --member "serviceAccount:turnkey-rookery-323304.svc.id.goog[trial/ksa-trial]" \
+  gsa-trial@turnkey-rookery-323304.iam.gserviceaccount.com
+```
+
+アノテーション付与については、イミュータブルにすべく、
+`kubectl`で実行ではなく、マニフェストに追加定義する。
+
+```
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: gsa-trial@turnkey-rookery-323304.iam.gserviceaccount.com
+  name: ksa-trial
+  namespace: trial
+```
+
 #### Spannerへの接続先変更（プロファイル指定）
 
 

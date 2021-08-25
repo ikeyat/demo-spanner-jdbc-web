@@ -17,6 +17,6 @@ steps:
 - name: "gcr.io/cloud-builders/gke-deploy"
   args:
   - run
-  - --filename=deployment/deployment.yml
+  - --filename=deployment/deployment-spanner.yml
   - --location=asia-northeast1-a
   - --cluster=gke-trial
