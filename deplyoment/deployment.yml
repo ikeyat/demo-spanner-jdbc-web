@@ -1,0 +1,22 @@
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "demo-spanner-jdbc-web"
+  namespace: "default"
+  labels:
+    app: "demo-spanner-jdbc-web"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "demo-spanner-jdbc-web"
+  template:
+    metadata:
+      labels:
+        app: "demo-spanner-jdbc-web"
+    spec:
+      containers:
+      - name: "demo-spanner-jdbc-web"
+        image: "demo-spanner/demo-spanner-jdbc-web:latest"
+        ports:
+        - containerPort: 80
