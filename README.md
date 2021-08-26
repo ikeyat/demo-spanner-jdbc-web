@@ -325,7 +325,8 @@ $ kubectl create serviceaccount --namespace trial ksa-trial
 ```
 
 リンク先の通り、マニフェストに以下を追記する。
-本リポジトリの資材では、`deployment-spanner.yml`に別ファイル化している。
+`serviceAccountName`はPodの`spec`の項目のため、kindがDeployment等の場合は、
+`template.spec.serviceAccountName`に設定する。Serviceには該当項目がなく、権限も不要なため追加不要。
 
 ```
 spec:
@@ -338,6 +339,8 @@ spec:
 metadata:
   namespace: "trial"
 ```
+
+本リポジトリの資材では、本項でのマニフェストファイル修正を`deployment-spanner.yml`に別ファイル化している。
 
 ##### Google Cloud認証（続き）
 
@@ -363,8 +366,52 @@ metadata:
   namespace: trial
 ```
 
-#### Spannerへの接続先変更（プロファイル指定）
+##### GSAにSpannerのアクセス権を付与
+作成したGSAに、SpannerのDBアクセス権を付与する。
+以下の権限一覧より、「Cloud Spanner データベース ユーザー」`roles/spanner.databaseUser`を設定する。
+これにより、マッピングされているKSAを用いて、PodがSpannerにアクセスできるようになる。
+https://cloud.google.com/spanner/docs/iam/?hl=ja
 
+アクセス権限の付与については以下の手順を参考に行う。
+https://cloud.google.com/iam/docs/granting-changing-revoking-access?hl=ja#granting-gcloud-manual
+
+
+```
+$ gcloud projects add-iam-policy-binding turnkey-rookery-323304 \
+    --member=serviceAccount:gsa-trial@turnkey-rookery-323304.iam.gserviceaccount.com --role=roles/spanner.databaseUser
+```
+
+#### Spannerにテーブルを作成
+サンプルアプリケーションでは、H2のような組込DB以外では起動時にテーブル作成DDLを実行しない設定にしているので、
+テーブルを手動で作成する。
+
+```
+$ gcloud spanner databases ddl update test-database --ddl="CREATE TABLE todo(id STRING(36), title STRING(30), finished BOOL, created_at TIMESTAMP) PRIMARY KEY (id)"  --instance=spanner-trial
+```
+
+
+#### Spannerへの接続先変更（プロファイル指定）
+マニフェストにて、アプリケーションをデプロイするPodの環境変数を`env`で設定できる。
+Springのプロファイル指定（`spring.profiles.active`）を、環境変数`SPRING_PROFILES_ACTIVE`経由で設定し、GCPのSpannerに接続するようにする。
+`spanner-gcp`プロファイルは、エミュレータではなくGCPのSpannerに対しての接続設定がされているプロファイルである。
+
+```
+      containers:
+      - name: "demo-spanner-jdbc-web"
+        image: "gcr.io/turnkey-rookery-323304/demo-spanner-jdbc-web:latest"
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "spanner-gcp"
+```
+
+#### APIの打鍵
+長かったが、デプロイしたアプリケーションに対してAPIを打鍵※し、GCPのConsole等からSpannerにデータが格納されていることを確認する。
+
+また、以前のようにPodの振り分け先の違いにより、API応答値のデータの変化が発生しないことも確認できるはず。
+
+※前の作業で、GKEのネームスペースを変更しているため、以前の作業とは別Pod、別Serviceとしてデプロイされており、ロードバランサの接続先グローバルIPアドレスも変更になっている。
 
 ## ApigeeX経由でのAPI公開
 TODO
