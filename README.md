@@ -439,7 +439,7 @@ https://cloud.google.com/apigee/docs/api-platform/tutorials/create-api-proxy-ope
 
 - http://ホスト名/v3/api-docs
 - http://ホスト名/v3/api-docs.yaml
-- http://ホスト名/swagger-ui
+- http://ホスト名/swagger-ui.html
 
 ※外部公開したくない場合は、以下のプロパティで無効化することが可能。
 https://springdoc.org/#disabling-the-springdoc-openapi-endpoints
