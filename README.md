@@ -413,5 +413,42 @@ Springのプロファイル指定（`spring.profiles.active`）を、環境変�
 
 ※前の作業で、GKEのネームスペースを変更しているため、以前の作業とは別Pod、別Serviceとしてデプロイされており、ロードバランサの接続先グローバルIPアドレスも変更になっている。
 
+
 ## ApigeeX経由でのAPI公開
-TODO
+https://cloud.google.com/apigee/docs/api-platform/tutorials/create-api-proxy-openapi-spec?hl=ja
+にある、Open API Specification(Spec)を元にAPIプロキシを作成する手順を確認する。
+サンプルアプリケーションのSpecを用意し、ApigeeXにインプットする。
+
+### Open API Specの用意
+今回、先にサンプルアプリケーションを作成済みのため、
+[springdoc-openapi](https://springdoc.org/)でソースコードからSpecを生成し、
+アプリケーションから公開されるSpecのエンドポイントを、インターネット経由でApigeeXにインプットする。
+
+`pom.xml`に以下を追加し、サンプルアプリケーションにspringdoc-openapiを組み込む。
+
+```
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-ui</artifactId>
+			<version>1.5.10</version>
+			<scope>runtime</scope>
+		</dependency>
+```
+
+サンプルアプリケーションを起動すると、以下のエンドポイントでSpec等が確認できる※。
+
+- http://ホスト名/v3/api-docs
+- http://ホスト名/v3/api-docs.yaml
+- http://ホスト名/swagger-ui
+
+※外部公開したくない場合は、以下のプロパティで無効化することが可能。
+https://springdoc.org/#disabling-the-springdoc-openapi-endpoints
+
+```
+# Disabling the /v3/api-docs enpoint
+springdoc.api-docs.enabled=false
+# Disabling the swagger-ui
+springdoc.swagger-ui.enabled=false
+```
+
+### APIプロキシの作成
