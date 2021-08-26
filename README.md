@@ -265,13 +265,13 @@ https://cloud.google.com/build/docs/deploying-builds/deploy-gke?hl=ja#automating
 この時点ではアプリケーションはPod内のH2に接続しているため、レプリカ数が2以上の場合は振り分けられたPod次第でデータ内容が変化する。
 
 
-### GCPのSpannerへの接続
-#### Spannerを有効にする
+## GKEでの確認(GCPのSpannerへの接続)
+### Spannerを有効にする
 Console（ブラウザ）から有効にする。
 
 https://console.cloud.google.com/flows/enableapi?apiid=spanner.googleapis.com&hl=ja&_ga=2.243158210.1164933426.1629795082-895740333.1618205695
 
-#### インスタンスの作成
+### インスタンスの作成
 https://cloud.google.com/spanner/docs/create-manage-instances?hl=ja
 に従って、CLIベースで作成。検証用なので、単リージョンで100処理ユニット構成（＝0.1ノード相当、ベータ版）とする。
 
@@ -279,14 +279,14 @@ https://cloud.google.com/spanner/docs/create-manage-instances?hl=ja
 $ gcloud beta spanner instances create spanner-trial --config=regional-asia-northeast1 --description="spanner-trial" --processing-units=100
 ```
 
-#### データベースの作成
+### データベースの作成
 Spannerエミュレータでのデータベース作成と同様に作成可能。
 
 ```
 gcloud spanner databases create test-database --instance=spanner-trial
 ```
 
-#### GKE -> Spannerへのアクセス権の付与
+### GKE -> Spannerへのアクセス権の付与
 - https://qiita.com/atsumjp/items/9df1f4e18bea164f95fe
 - https://medium.com/google-cloud-jp/k8s-gcp-access-controle-8d8e92446e84
     - 「k8s から GCP リソースへのアクセスを管理する」
@@ -297,7 +297,7 @@ gcloud spanner databases create test-database --instance=spanner-trial
 
 https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#enable_on_cluster
 
-##### 既存のGKEクラスタでWorkload Identity有効化
+#### 既存のGKEクラスタでWorkload Identity有効化
 https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#enable_on_cluster
 
 ```
@@ -306,7 +306,7 @@ $ gcloud container clusters update gke-trial --workload-pool=turnkey-rookery-323
   
 処理に結構時間を要する（5分くらい）。
   
-##### 既存ノードプールでWorkload Identity有効化
+#### 既存ノードプールでWorkload Identity有効化
 https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#option_2_node_pool_modification
 
 ```
@@ -315,7 +315,7 @@ $ gcloud container node-pools update default-pool --cluster=gke-trial --workload
 
 処理に結構時間を要する（5分くらい）。
 
-##### Google Cloud認証
+#### Google Cloud認証
 https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity?hl=ja#authenticating_to
 
 ```
@@ -342,7 +342,7 @@ metadata:
 
 本リポジトリの資材では、本項でのマニフェストファイル修正を`deployment-spanner.yml`に別ファイル化している。
 
-##### Google Cloud認証（続き）
+#### Google Cloud認証（続き）
 
 ```
 $ gcloud iam service-accounts create gsa-trial
@@ -366,7 +366,7 @@ metadata:
   namespace: trial
 ```
 
-##### GSAにSpannerのアクセス権を付与
+#### GSAにSpannerのアクセス権を付与
 作成したGSAに、SpannerのDBアクセス権を付与する。
 以下の権限一覧より、「Cloud Spanner データベース ユーザー」`roles/spanner.databaseUser`を設定する。
 これにより、マッピングされているKSAを用いて、PodがSpannerにアクセスできるようになる。
@@ -381,7 +381,7 @@ $ gcloud projects add-iam-policy-binding turnkey-rookery-323304 \
     --member=serviceAccount:gsa-trial@turnkey-rookery-323304.iam.gserviceaccount.com --role=roles/spanner.databaseUser
 ```
 
-#### Spannerにテーブルを作成
+### Spannerにテーブルを作成
 サンプルアプリケーションでは、H2のような組込DB以外では起動時にテーブル作成DDLを実行しない設定にしているので、
 テーブルを手動で作成する。
 
@@ -390,7 +390,7 @@ $ gcloud spanner databases ddl update test-database --ddl="CREATE TABLE todo(id 
 ```
 
 
-#### Spannerへの接続先変更（プロファイル指定）
+### Spannerへの接続先変更（プロファイル指定）
 マニフェストにて、アプリケーションをデプロイするPodの環境変数を`env`で設定できる。
 Springのプロファイル指定（`spring.profiles.active`）を、環境変数`SPRING_PROFILES_ACTIVE`経由で設定し、GCPのSpannerに接続するようにする。
 `spanner-gcp`プロファイルは、エミュレータではなくGCPのSpannerに対しての接続設定がされているプロファイルである。
@@ -406,7 +406,7 @@ Springのプロファイル指定（`spring.profiles.active`）を、環境変�
           value: "spanner-gcp"
 ```
 
-#### APIの打鍵
+### インターネット経由でのAPI打鍵(Spanner接続)
 長かったが、デプロイしたアプリケーションに対してAPIを打鍵※し、GCPのConsole等からSpannerにデータが格納されていることを確認する。
 
 また、以前のようにPodの振り分け先の違いにより、API応答値のデータの変化が発生しないことも確認できるはず。
