@@ -12,11 +12,11 @@ spec:
     matchLabels:
       app: "demo-spanner-jdbc-web"
   template:
-    serviceAccountName: ksa-trial
     metadata:
       labels:
         app: "demo-spanner-jdbc-web"
     spec:
+      serviceAccountName: ksa-trial
       containers:
       - name: "demo-spanner-jdbc-web"
         image: "gcr.io/turnkey-rookery-323304/demo-spanner-jdbc-web:latest"
