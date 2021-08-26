@@ -36,7 +36,6 @@ metadata:
     app: "demo-spanner-jdbc-web"
     app.kubernetes.io/managed-by: "gcp-cloud-build-deploy"
 spec:
-  serviceAccountName: ksa-trial
   ports:
   - protocol: "TCP"
     port: 80
