@@ -451,4 +451,86 @@ springdoc.api-docs.enabled=false
 springdoc.swagger-ui.enabled=false
 ```
 
+### Specの公開
+ApigeeXでは、Webに公開されているSpecをインポート可能だが、
+HTTPSでないと「Unexpected Error」が発生するため、今回の作成したでもアプリケーションの`/v3/api-docs.yaml`エンドポイント経由（HTTPではインポートができない。
+
+そのため、`/v3/api-docs.yaml`エンドポイントから取得したSpec（YAMLファイル）を、GitHubリポジトリに格納し、GitHubからApigeeXにインポートする。
+
+`/apispec`ディレクトリにSpecを格納する。
+
 ### APIプロキシの作成
+#### Specのインポート
+https://apigee.google.com/edge
+
+の「Develop」→「API Proxies」の、「CREATE NEW」を押し、
+「Reverse Procy(Most common)」の中の「Use OpenAPI Spec」を選択。
+
+URLにGitHubのSpecのRawのURLを貼り付ける。
+
+```
+https://raw.githubusercontent.com/ikeyat/demo-spanner-jdbc-web/main/apispec/api-docs.yaml
+```
+
+#### Proxy Detail
+Specの情報が入力されている。検証なのでそのままNextする。
+
+#### Common Policies
+検証のため、まずはミニマムの以下ですすめる。
+
+- Pass throughを選択
+- Add CORS headersチェック外す
+- Quotaなし（そもそもPass Throughは選択不可）
+
+#### OpenAPI operations
+SpecのAPIが一覧されるので、確認してNextする。
+
+#### Summary
+これまでの設定が出るので必要に応じて確認。
+「Optional Deployment」のチェックを入れてCreate（チェックするとデプロイが開始される？）。
+
+
+### 外部ロードバランサの設定
+ApigeeX開設時に外部ロードバランサ設定をSkipしている場合は、
+APIプロキシをインターネット経由で打鍵できるよう、設定しておく。
+
+https://cloud.google.com/apigee/docs/api-platform/get-started/configure-routing?hl=ja#external-access
+
+- Enable Inernet accessを選択
+- Use wildcard DNS serviceにチェックを入れる
+  - ドメインを持ってない場合。検証目的なら無料でドメインが入手できる。
+  - SSL証明書はGoogle Managed Certificationが自動的に作られ、適用される。
+- Subnetworkは、defaultを選択
+
+上記で作成すると、GCPのCloud Load Balancingにインスタンスが追加される。
+そちらでグローバルIPが取得できる。
+
+### APIプロキシの打鍵
+https://cloud.google.com/apigee/docs/api-platform/tutorials/create-api-proxy-openapi-spec?hl=ja#testtheapiproxy
+
+API打鍵を、以下のURLベースで行う。
+
+```
+https://<払い出されたグローバルIP>.nip.io/openapi-definition/todos
+```
+
+### ポリシーの適用（SpikeArrest）
+https://cloud.google.com/apigee/docs/api-platform/tutorials/add-spike-arrest?hl=ja
+
+上記URLを参考に、作成したAPIプロキシの`PreFlow`にSpikeArrestポリシーを適用し、制限値を`1ps`で設定し、
+API打鍵を1秒に数回以上行うと、流量超過エラーが返されるのが確認できる。
+
+```
+$ # 1秒以内に複数回下記コマンドを実行
+$ curl -D -  https://<払い出されたグローバルIP>.nip.io/openapi-definition/todos
+HTTP/2 429 
+content-type: application/json
+x-request-id: f41e2756-d009-4e32-b74b-ae9f9e426a1d
+content-length: 220
+date: Fri, 27 Aug 2021 11:55:55 GMT
+server: apigee
+via: 1.1 google
+alt-svc: clear
+
+{"fault":{"faultstring":"Spike arrest violation. Allowed rate : MessageRate{messagesPerPeriod=1, periodInMicroseconds=1000000, maxBurstMessageCount=1.0}","detail":{"errorcode":"policies.ratelimit.SpikeArrestViolation"}}}%    
+```
