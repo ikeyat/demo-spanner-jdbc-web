@@ -1,0 +1,88 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+- url: http://34.146.241.8
+  description: Generated server url
+paths:
+  /todos/{todoId}:
+    put:
+      tags:
+      - todo-controller
+      operationId: putTodo
+      parameters:
+      - name: todoId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TodoResource'
+    delete:
+      tags:
+      - todo-controller
+      operationId: deleteTodo
+      parameters:
+      - name: todoId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+  /todos:
+    get:
+      tags:
+      - todo-controller
+      operationId: getTodos
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TodoResource'
+    post:
+      tags:
+      - todo-controller
+      operationId: postTodos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoResource'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/TodoResource'
+components:
+  schemas:
+    TodoResource:
+      required:
+      - title
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          maxLength: 30
+          minLength: 1
+          type: string
+        finished:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
