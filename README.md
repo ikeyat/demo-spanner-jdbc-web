@@ -534,3 +534,62 @@ alt-svc: clear
 
 {"fault":{"faultstring":"Spike arrest violation. Allowed rate : MessageRate{messagesPerPeriod=1, periodInMicroseconds=1000000, maxBurstMessageCount=1.0}","detail":{"errorcode":"policies.ratelimit.SpikeArrestViolation"}}}%    
 ```
+
+### ポリシーの適用（APIキー）
+- https://cloud.google.com/apigee/docs/api-platform/security/api-keys?hl=ja
+- https://cloud.google.com/apigee/docs/api-platform/security/setting-api-key-validation?hl=ja
+
+APIキーを利用するための流れは、[大まかな手順](https://cloud.google.com/apigee/docs/api-platform/security/api-keys?hl=ja#howapikeyswork-highlevelsteps)にもあるよう以下となる。
+
+- APIキーポリシーを適用したAPIプロキシの作成
+- APIプロダクトの作成（APIプロキシのグルーピングと理解）
+- デベロッパーの登録
+- デベロッパーのクライアントアプリの登録
+- APIキーを付けて、APIを打鍵
+
+既存のAPIプロキシにAPIキーのポリシー追加することもできるが、
+ここではSpecからAPIプロキシを作成し直してみる。
+
+#### APIプロキシの作成
+「APIプロキシの作成」を参照。
+その中の「Common Policies」にて、Pass ThroughではなくAPI Keyを選択する。
+
+#### APIプロダクトの作成
+「Publish」の「API Products」へ進み「＋API Product」を押す。
+
+「This API product is configured using a legacy format. Reconfigure to take advantage of new configuration features.」と表記されているので、右隣の「RECONFIGURE」を押す。
+
+必須項目を以下のように埋める。
+
+- Name / Display Nameは適当に決める。
+- Environmentは、APIプロキシをデプロイした環境を選択する。
+- Accessは「Internal Only」。デベロッパーには、デベロッパーとして登録が完了するまでAPIの存在すら見れないモードらしい。
+- Allowed OAuth scopeはAPIキーでは使えないので空欄。
+- API proxiesに、APIキーを適用したAPIプロキシを選択
+- Pathsには、選択したAPIプロキシからさらに範囲をURLで狭めたい場合に設定する。狭める必要がなければ`/`を入力する。
+- Methodsも狭めたい場合は選ぶ。狭めないなら全選択する。
+
+#### Developerの作成
+「Publish」の「Developers」へ進み「＋Developer」を押す。
+
+ユーザ情報（FirstName、LastName、ユーザー名、Eメールアドレス）を入力。
+このユーザはGCPのユーザとは全く関係ない（と思われる）。ApigeeXで作成したAPIの利用者ユーザ。
+
+####クライアントアプリの登録
+「Publish」の「Apps」へ進み「＋App」を押す。
+
+- Nameは適当に決める。
+- Developerは前手順で作成したものを選ぶ。
+- CredentialsのExpiryはいったんNever。期限も受けたい場合は設定。
+- Productには、前手順で作成したAPIプロダクトを選択。
+
+上記で作成すると、APIキーとAPIクレデンシャルがブラウザ画面に出力される。
+APIキー認証の場合は、APIキーのみを利用する。
+
+#### APIの打鍵
+以下のようにURLのクエリパラメータにAPIキーを付けることで、APIキーがApigeeXに送られ、ApigeeX側で認証が行われる。
+
+
+```
+https://<ホスト名>/todo-apikey/todos?apikey=<払い出されたAPIキー>
+```
