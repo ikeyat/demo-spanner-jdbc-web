@@ -593,3 +593,190 @@ APIキー認証の場合は、APIキーのみを利用する。
 ```
 https://<ホスト名>/todo-apikey/todos?apikey=<払い出されたAPIキー>
 ```
+
+### ポリシーの適用（OAuth2ポリシー）
+https://cloud.google.com/apigee/docs/api-platform/security/oauth/access-tokens?hl=ja#requestinganaccesstokenclientcredentialsgranttype
+
+OAuth2のScopeを用いて、参照専用のアクセストークン、更新専用のアクセストークンを払い出し、
+API打鍵する検証を行う。
+
+OAuth2の場合は、以下のような流れとなる。
+
+- OAuth2ポリシーを適用したAPIプロキシの作成
+- トークンエンドポイントの作成
+- APIプロダクトの作成（APIプロキシのグルーピングと理解）
+- デベロッパーの登録
+- デベロッパーのクライアントアプリの登録
+- アクセストークンの払い出し
+- アクセストークンを付けて、APIを打鍵
+
+前項同様、既存のAPIプロキシにAPIキーのポリシー追加することもできるが、
+ここではSpecからAPIプロキシを作成し直してみる。
+
+なお、Open API Specification v.3では、[OAuth2](https://swagger.io/specification/#security-scheme-object)および、[各APIへのOAuth2の適用](https://swagger.io/specification/#security-requirement-object)についても定義可能であるが、ApigeeXのAPIプロキシ作成時に機能していないように見える（試した結果）ため、SpecからOAuth2を適用するのではなく、ApigeeX上でOAuth2を適用していく。
+
+#### APIプロキシの作成
+
+##### SpecからAPIプロキシを作成（既存APIプロキシ使用時はスキップ）
+「APIプロキシの作成」を参照。
+その中の「Common Policies」にて、Pass ThroughではなくOAuth2を選択する。
+
+##### APIプロキシ作成後のポリシー適用初期状況の確認
+ApigeeXで生成されたOAuth2ポリシーは初期では以下のような状態である。
+
+- OAuth2トークンの検証ポリシーの定義
+- 全APIに対し（`<PreFlow>`にて）、OAuth2トークンのアクセストークン検証ポリシーが適用（`OAuth`ポリシーの`VerifyAccessToken`オペレーション）
+- 全APIに対し（`<PreFlow>`にて）、OAuth2トークンの削除ポリシーが適用（`AssignMessage`ポリシー）
+
+ただ、以下の点で不完全なため、APIプロキシを修正する。
+
+- Scopeが定義されていない。
+  - 言い換えると、APIプロキシ対象の全APIに対し一律のアクセス制御しかできない。
+
+##### OAuth2ポリシーの修正、追加
+今回、参照専用、更新専用のアクセストークンを払い出せるようにするため、以下の2つのScopeを用意する。
+
+- `todo_read`: 参照専用のScope
+- `todo_write`: 更新専用のScope
+
+初期状態で作られているOAuth2のアクセストークン検証ポリシーを修正し、参照専用Scopeであることの検証を加える。`<Scope>`が該当箇所となる。`name`や`DisplayName`も重複しないよう適宜変更する。
+
+```
+<OAuthV2 continueOnError="false" enabled="true" name="verify-oauth-v2-access-token-read">
+    <DisplayName>Verify OAuth v2.0 Access Token Read</DisplayName>
+    <Operation>VerifyAccessToken</Operation>
+    <Scope>todo_read</Scope>
+</OAuthV2>
+```
+
+更新専用Scopeのアクセストークン検証ポリシも必要なので、ポリシーを追加する。
+Policiesの右の「+」ボタンを押し、「OAuth v2.0」を選択し、`name`や`DisplayName`を入力して追加」したあと、以下のように定義を修正する。
+
+```
+<OAuthV2 async="false" continueOnError="false" enabled="true" name="verify-oauth-v2-access-token-write">
+    <DisplayName>Verify OAuth v2.0 Access Token Write</DisplayName>
+    <Operation>VerifyAccessToken</Operation>
+    <Scope>todo_write</Scope>
+</OAuthV2>
+```
+
+##### OAuth2ポリシーの再適用
+前項で修正、追加したOAuth2ポリシーを利用する側を修正する。
+
+#### トークンエンドポイントの作成
+ApigeeXがクライアントアプリケーションに対して、アクセストークンを払い出すための、トークンエンドポイントをProxy Endpointとして作成する。
+
+ただし、[アンチパターン](https://cloud.google.com/apigee/docs/api-platform/antipatterns/multiple-proxyendpoints?hl=ja)に従い、
+トークンエンドポイントのProxy Endpointは、別の専用のAPIプロキシを作成し、その中で定義する。
+
+##### 新規APIプロキシの作成
+「API Proxies」→「CREATE NEW」で、「No target」を選択する。
+
+
+#### APIプロダクトの作成
+「APIキー」ポリシー適用時と同様であるが、
+Allowed OAuth Scopeに、前項で定義したscopeをカンマ区切りで入力する。
+
+- Allowed OAuth Scope: `todo_read, todo_write`
+
+#### Developerの作成
+「APIキー」ポリシー適用時と同様のため略。
+
+####クライアントアプリの登録
+「APIキー」ポリシー適用時と同様のため略。
+
+
+#### アクセストークンの払い出し（全スコープ）
+
+アクセストークン払い出し時に必要な、クライアントクレデンシャルズ（キー＝クライアントID、シークレット）をBase64に変更する。キーとシークレットをコロン`:`で区切った文字列をBase64にする。
+
+```
+$ echo -n '＜キー＞:＜シークレット＞' | base64     
+```
+
+次に、アクセストークン払い出しをリクエストする。
+まずはスコープを指定せず（＝全スコープを要求）でアクセストークンを払い出す。
+
+```
+$ curl -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Authorization: Basic <Base64にしたクライアントクレデンシャルズ>" \
+  -X POST "https://＜ホスト名＞/todo-oauth2-auth/token" \
+  -d "grant_type=client_credentials"
+
+{
+  "refresh_token_expires_in": "0",
+  "api_product_list": "[todo-oauth2-write, todo-oauth2-read, todo-apikey]",
+  "api_product_list_json": [
+    "todo-oauth2-write",
+    "todo-oauth2-read",
+    "todo-apikey"
+  ],
+  "organization_name": "turnkey-rookery-323304",
+  "developer.email": "＜メールアドレス＞",
+  "token_type": "BearerToken",
+  "issued_at": "1630410924126",
+  "client_id": "＜キー＞",
+  "access_token": "＜アクセストークン＞",
+  "application_name": "f997b0d8-1f43-4a2f-aecf-1507680dae22",
+  "scope": "todo_read todo_write",
+  "expires_in": "1799",
+  "refresh_count": "0",
+  "status": "approved"
+}%         
+```
+
+#### APIの打鍵（認可OK）
+
+```
+$ curl -D - -H "Authorization: Bearer ＜アクセストークン＞" https://＜ホスト名＞/todo-oauth2/todos 
+＜GET成功　レスポンス略＞
+
+$ curl -D - -H "Authorization: Bearer ＜アクセストークン＞" -X POST -H "Content-Type: application/json" -d '{"title": "Hoge Hoge"}' https://＜ホスト名＞/todo-oauth2/todos
+＜POST成功　レスポンス略＞
+```
+
+#### アクセストークンの払い出し（readスコープのみ）
+
+改めて、スコープ`todo_read`を指定してアクセストークンを払い出す。
+レスポンスより、アクセストークンのスコープが`todo_read`のみとなっていることが確認できる。
+
+```
+$ curl -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Authorization: Basic <Base64にしたクライアントクレデンシャルズ>" \
+  -X POST "https://＜ホスト名＞/todo-oauth2-auth/token" \
+  -d "grant_type=client_credentials&scope=todo_read" 
+
+{
+  "refresh_token_expires_in": "0",
+  "api_product_list": "[todo-oauth2-write, todo-oauth2-read, todo-apikey]",
+  "api_product_list_json": [
+    "todo-oauth2-write",
+    "todo-oauth2-read",
+    "todo-apikey"
+  ],
+  "organization_name": "turnkey-rookery-323304",
+  "developer.email": "＜メールアドレス＞",
+  "token_type": "BearerToken",
+  "issued_at": "1630412050704",
+  "client_id": "＜キー＞",
+  "access_token": "＜アクセストークン＞",
+  "application_name": "f997b0d8-1f43-4a2f-aecf-1507680dae22",
+  "scope": "todo_read",
+  "expires_in": "1799",
+  "refresh_count": "0",
+  "status": "approved"
+}%
+```
+
+#### APIの打鍵（認可NG）
+
+```
+$ curl -D - -H "Authorization: Bearer ＜アクセストークン＞" https://＜ホスト名＞/todo-oauth2/todos 
+＜GET成功　レスポンス略＞
+
+$ curl -D - -H "Authorization: Bearer ＜アクセストークン＞" -X POST -H "Content-Type: application/json" -d '{"title": "Hoge Hoge"}' https://＜ホスト名＞/todo-oauth2/todos
+＜POST失敗　レスポンス略＞
+```
+
+
+
